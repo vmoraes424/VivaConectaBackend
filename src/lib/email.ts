@@ -5,7 +5,7 @@ const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
 function getFrontendBaseUrl(): string {
   const firstUrl = env.FRONTEND_URL.split(",")[0]?.trim();
-  return firstUrl || "http://localhost:3000";
+  return (firstUrl || "http://localhost:3000").replace(/\/$/, "");
 }
 
 export interface EmailTemplateOptions {

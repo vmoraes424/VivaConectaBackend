@@ -7,6 +7,7 @@ import {
   ForbiddenError,
   NotFoundError,
 } from "../shared/errors";
+import { getCookieOptions } from "../config/cookie";
 
 describe("App & Security Tests", () => {
   test("CORS: nega origem não permitida e não retorna access-control-allow-origin", async () => {
@@ -150,5 +151,31 @@ describe("App & Security Tests", () => {
 
     assert.equal(res.statusCode, 401);
     await app.close();
+  });
+
+  test("Cookies: localhost utiliza sameSite=lax e secure=false", () => {
+    const req = {
+      protocol: "http",
+      headers: { host: "localhost:3333" },
+    };
+    const opts = getCookieOptions(req as any, 3600);
+    assert.equal(opts.sameSite, "lax");
+    assert.equal(opts.secure, false);
+    assert.equal(opts.httpOnly, true);
+    assert.equal(opts.maxAge, 3600);
+  });
+
+  test("Cookies: ambiente Railway/HTTPS utiliza sameSite=none e secure=true para cross-site", () => {
+    const req = {
+      protocol: "https",
+      headers: {
+        host: "viva-conecta-backend.up.railway.app",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const opts = getCookieOptions(req as any, 3600);
+    assert.equal(opts.sameSite, "none");
+    assert.equal(opts.secure, true);
+    assert.equal(opts.httpOnly, true);
   });
 });

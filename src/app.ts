@@ -47,7 +47,7 @@ export function buildApp(): FastifyInstance {
   // 1. CORS com lista explícita de origens
   const allowedOrigins = new Set<string>(
     env.FRONTEND_URL.split(",")
-      .map((url) => url.trim())
+      .map((url) => url.trim().replace(/\/$/, ""))
       .filter(Boolean),
   );
 
@@ -67,7 +67,11 @@ export function buildApp(): FastifyInstance {
   app.register(cors, {
     origin: (origin, cb) => {
       // Sem origin: curl, mobile, server-to-server
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin) {
+        return cb(null, true);
+      }
+      const cleanOrigin = origin.trim().replace(/\/$/, "");
+      if (allowedOrigins.has(cleanOrigin)) {
         return cb(null, true);
       }
       cb(new ForbiddenError("Origem não permitida"), false);

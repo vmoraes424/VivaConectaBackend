@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { PublicoService } from "./publico.service";
 import { z } from "zod";
 import { NotFoundError } from "../../shared/errors";
+import { getCookieOptions } from "../../config/cookie";
 
 const acessoBodySchema = z.object({
   visitanteId: z.string().optional(),
@@ -54,11 +55,11 @@ export async function registrarAcessoHandler(
 
   // Persiste cookie de visitante caso não exista
   if (!cookieVisitante && result.visitanteId) {
-    reply.setCookie("conecta-visitante", result.visitanteId, {
-      path: "/",
-      maxAge: 365 * 24 * 60 * 60, // 1 ano
-      sameSite: "lax",
-    });
+    reply.setCookie(
+      "conecta-visitante",
+      result.visitanteId,
+      getCookieOptions(request, 365 * 24 * 60 * 60),
+    );
   }
 
   return reply.send(result);

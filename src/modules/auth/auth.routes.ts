@@ -8,6 +8,7 @@ import {
 } from "./auth.schemas";
 import { authenticate } from "../../middlewares/auth";
 import { env } from "../../config/env";
+import { getCookieOptions } from "../../config/cookie";
 
 export async function authRoutes(app: FastifyInstance) {
   const service = new AuthService();
@@ -36,23 +37,20 @@ export async function authRoutes(app: FastifyInstance) {
         },
       );
 
-      reply.setCookie("token", token, {
-        path: "/",
-        httpOnly: true,
-        secure:
-          env.NODE_ENV === "production" &&
-          !request.headers.host?.includes("localhost") &&
-          !request.headers.host?.includes("127.0.0.1"),
-        sameSite: "lax",
-        maxAge: body.lembrar ? 30 * 24 * 60 * 60 : 24 * 60 * 60,
-      });
+      const maxAge = body.lembrar ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
+      reply.setCookie("token", token, getCookieOptions(request, maxAge));
 
       return reply.send({ user, token });
     });
 
   // Logout
-  app.post("/logout", async (_request, reply) => {
-    reply.clearCookie("token", { path: "/" });
+  app.post("/logout", async (request, reply) => {
+    const opts = getCookieOptions(request);
+    reply.clearCookie("token", {
+      path: opts.path,
+      secure: opts.secure,
+      sameSite: opts.sameSite,
+    });
     return reply.send({ success: true });
   });
 
@@ -130,16 +128,7 @@ export async function authRoutes(app: FastifyInstance) {
         { expiresIn: "1d" },
       );
 
-      reply.setCookie("token", token, {
-        path: "/",
-        httpOnly: true,
-        secure:
-          env.NODE_ENV === "production" &&
-          !request.headers.host?.includes("localhost") &&
-          !request.headers.host?.includes("127.0.0.1"),
-        sameSite: "lax",
-        maxAge: 24 * 60 * 60,
-      });
+      reply.setCookie("token", token, getCookieOptions(request, 24 * 60 * 60));
 
       return reply.send({ user, token });
     });
