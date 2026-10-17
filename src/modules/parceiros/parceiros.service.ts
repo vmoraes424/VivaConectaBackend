@@ -108,6 +108,10 @@ export class ParceirosService {
 
     return {
       ...row.parceiro,
+      empresa: row.parceiro.empresa ?? undefined,
+      avatarUrl: row.parceiro.avatarUrl ?? undefined,
+      localidade: row.parceiro.localidade ?? undefined,
+      descricao: row.parceiro.descricao ?? "",
       comissao:
         row.parceiro.comissaoTipo === "fixo"
           ? {
