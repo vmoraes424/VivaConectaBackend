@@ -8,8 +8,9 @@ import { eq, inArray, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { normalizar } from "../../lib/conecta";
 import { parceiroInputSchema, type parceirosQuerySchema } from "./parceiros.schemas";
-import { z } from "zod";
 import { BadRequestError, NotFoundError } from "../../shared/errors";
+import { uploadImageToR2, parseDataUrl } from "../../lib/r2";
+import z from "zod";
 
 export class ParceirosService {
   async listar(filters?: z.infer<typeof parceirosQuerySchema>) {
@@ -51,14 +52,14 @@ export class ParceirosService {
       comissao:
         parceiro.comissaoTipo === "fixo"
           ? {
-              tipo: "fixo" as const,
-              valor: parceiro.comissaoValor,
-              moeda: (parceiro.comissaoMoeda as "BRL" | "EUR" | "USD") || "BRL",
-            }
+            tipo: "fixo" as const,
+            valor: parceiro.comissaoValor,
+            moeda: (parceiro.comissaoMoeda as "BRL" | "EUR" | "USD") || "BRL",
+          }
           : {
-              tipo: "percentual" as const,
-              valor: parceiro.comissaoValor,
-            },
+            tipo: "percentual" as const,
+            valor: parceiro.comissaoValor,
+          },
       especialidade: especialidadeNome || "",
       indicacoes: indicacoesPorParceiro.get(parceiro.id) || 0,
       acessadas: acessadasPorParceiro.get(parceiro.id) || 0,
@@ -105,14 +106,14 @@ export class ParceirosService {
       comissao:
         row.parceiro.comissaoTipo === "fixo"
           ? {
-              tipo: "fixo" as const,
-              valor: row.parceiro.comissaoValor,
-              moeda: (row.parceiro.comissaoMoeda as "BRL" | "EUR" | "USD") || "BRL",
-            }
+            tipo: "fixo" as const,
+            valor: row.parceiro.comissaoValor,
+            moeda: (row.parceiro.comissaoMoeda as "BRL" | "EUR" | "USD") || "BRL",
+          }
           : {
-              tipo: "percentual" as const,
-              valor: row.parceiro.comissaoValor,
-            },
+            tipo: "percentual" as const,
+            valor: row.parceiro.comissaoValor,
+          },
       especialidade: row.especialidadeNome || "",
     };
   }
@@ -135,6 +136,15 @@ export class ParceirosService {
     const comissaoValor = value.comissao.valor;
     const comissaoMoeda = value.comissao.tipo === "fixo" ? value.comissao.moeda : null;
 
+    let avatarUrl = value.avatarUrl || null;
+    if (avatarUrl && avatarUrl.startsWith("data:image/")) {
+      const parsed = parseDataUrl(avatarUrl);
+      if (parsed) {
+        const uploaded = await uploadImageToR2(parsed.buffer, parsed.mimeType, "avatars");
+        avatarUrl = uploaded.url;
+      }
+    }
+
     const [existente] = await db
       .select()
       .from(parceiros)
@@ -147,7 +157,7 @@ export class ParceirosService {
         .set({
           nome: value.nome,
           empresa: value.empresa || null,
-          avatarUrl: value.avatarUrl || null,
+          avatarUrl,
           localidade: value.localidade || null,
           especialidadeId: value.especialidadeId,
           descricao: value.descricao || "",
@@ -164,7 +174,7 @@ export class ParceirosService {
         id,
         nome: value.nome,
         empresa: value.empresa || null,
-        avatarUrl: value.avatarUrl || null,
+        avatarUrl,
         localidade: value.localidade || null,
         especialidadeId: value.especialidadeId,
         descricao: value.descricao || "",
