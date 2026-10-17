@@ -7,7 +7,7 @@ import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
 import { ZodError } from "zod";
 import { env } from "./config/env";
-import { AppError } from "./shared/errors";
+import { AppError, ForbiddenError } from "./shared/errors";
 
 import { authRoutes } from "./modules/auth/auth.routes";
 import { usuariosRoutes } from "./modules/usuarios/usuarios.routes";
@@ -24,6 +24,25 @@ export function buildApp(): FastifyInstance {
     logger: env.NODE_ENV !== "test",
     trustProxy: true,
   });
+
+  // Tolerância a requisições com Content-Type application/json e corpo vazio (ex: DELETE, POST sem payload)
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (req, body, done) => {
+      if (!body || (typeof body === "string" && body.trim() === "") || (Buffer.isBuffer(body) && body.length === 0)) {
+        done(null, undefined);
+        return;
+      }
+      try {
+        const text = typeof body === "string" ? body : body.toString("utf-8");
+        done(null, JSON.parse(text));
+      } catch (err: any) {
+        err.statusCode = 400;
+        done(err, undefined);
+      }
+    },
+  );
 
   // 1. CORS com lista explícita de origens
   const allowedOrigins = new Set<string>(
@@ -51,7 +70,7 @@ export function buildApp(): FastifyInstance {
       if (!origin || allowedOrigins.has(origin)) {
         return cb(null, true);
       }
-      cb(new Error("Origem não permitida"), false);
+      cb(new ForbiddenError("Origem não permitida"), false);
     },
     credentials: true,
   });

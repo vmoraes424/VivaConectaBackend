@@ -19,10 +19,36 @@ export class UsuariosService {
     const todosUsuarios = await db.select().from(usuarios);
     const todosParceiros = await db.select().from(parceiros);
 
-    const sanitizados = todosUsuarios.map(({ senhaHash, ...u }) => u);
+    const sanitizados = todosUsuarios.map(({ senhaHash, ...u }) => ({
+      ...u,
+      avatarUrl: u.avatarUrl ?? undefined,
+      telefone: u.telefone ?? undefined,
+      localidade: u.localidade ?? undefined,
+      parceiroId: u.parceiroId ?? undefined,
+      conviteToken: u.conviteToken ?? undefined,
+    }));
+
+    const parceirosFormatados = todosParceiros.map((p) => ({
+      ...p,
+      empresa: p.empresa ?? undefined,
+      avatarUrl: p.avatarUrl ?? undefined,
+      localidade: p.localidade ?? undefined,
+      comissao:
+        p.comissaoTipo === "fixo"
+          ? {
+              tipo: "fixo" as const,
+              valor: p.comissaoValor,
+              moeda: (p.comissaoMoeda as "BRL" | "EUR" | "USD") || "BRL",
+            }
+          : {
+              tipo: "percentual" as const,
+              valor: p.comissaoValor,
+            },
+    }));
+
     return {
       usuarios: sanitizados,
-      parceiros: todosParceiros,
+      parceiros: parceirosFormatados,
     };
   }
 
@@ -176,6 +202,11 @@ export class UsuariosService {
   async excluir(id: string, actor: UsuarioRecord) {
     if (actor.id === id) {
       throw new ForbiddenError("Você não pode excluir a própria conta.");
+    }
+
+    const [found] = await db.select().from(usuarios).where(eq(usuarios.id, id)).limit(1);
+    if (!found) {
+      throw new NotFoundError("Usuário não encontrado.");
     }
 
     await db.delete(usuarios).where(eq(usuarios.id, id));

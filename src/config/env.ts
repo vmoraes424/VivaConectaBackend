@@ -12,7 +12,7 @@ const envSchema = z.object({
 
   // Resend (E-mail)
   RESEND_API_KEY: z.string().optional().default(""),
-  EMAIL_FROM: z.string().default("Viva Conecta <nao-responda@vivasf.com.br>"),
+  EMAIL_FROM: z.string().default("Viva Conecta <noreply@noreply.vivasf.com.br>"),
 
   // Cloudflare R2 (Storage de Imagens)
   R2_ACCOUNT_ID: z.string().optional().default(""),

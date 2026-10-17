@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { ParceiroDashboardService } from "./parceiro-dashboard.service";
-import { requireParceiro } from "../../middlewares/auth";
+import { authenticate, requireParceiro } from "../../middlewares/auth";
 import { z } from "zod";
 
 const parceiroQuerySchema = z.object({
@@ -25,7 +25,7 @@ export async function parceiroDashboardRoutes(app: FastifyInstance) {
   // Consulta por id (para admins ou pelo parceiro)
   app.get(
     "/:id",
-    { preHandler: [requireParceiro] },
+    { preHandler: [authenticate] },
     async (request, reply) => {
       const { id } = request.params as { id: string };
       const user = request.currentUser!;

@@ -10,6 +10,8 @@ export const avatarSchema = z
   .refine(
     (value) =>
       !value ||
+      value.startsWith("http://") ||
+      value.startsWith("https://") ||
       /^data:image\/(png|jpeg|webp);base64,[a-zA-Z0-9+/=]+$/.test(value),
     "Imagem inválida",
   );
