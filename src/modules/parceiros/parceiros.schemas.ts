@@ -21,10 +21,11 @@ export const parceiroInputSchema = z.object({
   localidade: z.string().trim().optional().default(""),
   especialidadeId: z.string().min(1, "Selecione uma especialidade"),
   descricao: z.string().optional().default(""),
-  email: z.string().trim().email("Informe um e-mail válido"),
+  email: z.string().trim().toLowerCase().email("Informe um e-mail válido"),
   whatsapp: telefoneSchema,
   comissao: comissaoSchema,
   ativo: z.boolean().default(true),
+  convidar: z.boolean().optional().default(false),
 });
 
 export const parceirosQuerySchema = z.object({

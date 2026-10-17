@@ -8,7 +8,9 @@ import { eq, inArray, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { normalizar } from "../../lib/conecta";
 import { parceiroInputSchema, type parceirosQuerySchema } from "./parceiros.schemas";
-import { BadRequestError, NotFoundError } from "../../shared/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "../../shared/errors";
+import { hashPassword } from "../../lib/password";
+import { enviarConviteUsuario } from "../../lib/email";
 import {
   uploadImageToR2,
   parseDataUrl,
@@ -184,6 +186,18 @@ export class ParceirosService {
         })
         .where(eq(parceiros.id, id));
     } else {
+      if (value.convidar) {
+        const [usuarioExistente] = await db
+          .select()
+          .from(usuarios)
+          .where(eq(usuarios.email, value.email))
+          .limit(1);
+
+        if (usuarioExistente) {
+          throw new ConflictError("Já existe um usuário com esse e-mail.");
+        }
+      }
+
       await db.insert(parceiros).values({
         id,
         nome: value.nome,
@@ -199,6 +213,35 @@ export class ParceirosService {
         comissaoMoeda,
         ativo: value.ativo,
       });
+
+      if (value.convidar) {
+        const userId = randomUUID();
+        const conviteToken = randomUUID();
+        const conviteExpiraEm = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000); // 5 dias
+        const temporaryHash = await hashPassword(randomUUID());
+
+        await db.insert(usuarios).values({
+          id: userId,
+          nome: value.nome,
+          email: value.email,
+          senhaHash: temporaryHash,
+          papel: "parceiro",
+          perfil: "administrador",
+          acessos: [],
+          parceiroId: id,
+          ativo: value.ativo,
+          convitePendente: true,
+          conviteToken,
+          conviteExpiraEm,
+        });
+
+        await enviarConviteUsuario({
+          email: value.email,
+          nome: value.nome,
+          token: conviteToken,
+          tipo: "parceiro",
+        });
+      }
     }
 
     return this.obterPorId(id);
