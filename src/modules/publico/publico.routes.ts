@@ -3,6 +3,7 @@ import { PublicoService } from "./publico.service";
 import { z } from "zod";
 import { NotFoundError } from "../../shared/errors";
 import { getCookieOptions } from "../../config/cookie";
+import { resolveGeoLocation } from "../../lib/geo";
 
 const acessoBodySchema = z.object({
   visitanteId: z.string().optional(),
@@ -41,11 +42,16 @@ export async function registrarAcessoHandler(
   const visitanteId = body.visitanteId || cookieVisitante;
   const userAgent = request.headers["user-agent"];
 
+  const geo = await resolveGeoLocation(request, {
+    cidade: body.cidade,
+    uf: body.uf,
+  });
+
   const result = await service.registrarAcesso(codigo, {
     visitanteId,
     userAgent,
-    cidade: body.cidade,
-    uf: body.uf,
+    cidade: geo.cidade,
+    uf: geo.uf,
     origem: body.origem,
   });
 
