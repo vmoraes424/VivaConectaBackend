@@ -9,7 +9,12 @@ import { randomUUID } from "node:crypto";
 import { normalizar } from "../../lib/conecta";
 import { parceiroInputSchema, type parceirosQuerySchema } from "./parceiros.schemas";
 import { BadRequestError, NotFoundError } from "../../shared/errors";
-import { uploadImageToR2, parseDataUrl } from "../../lib/r2";
+import {
+  uploadImageToR2,
+  parseDataUrl,
+  deleteImageFromR2,
+  deleteImagesFromR2,
+} from "../../lib/r2";
 import z from "zod";
 
 export class ParceirosService {
@@ -152,6 +157,11 @@ export class ParceirosService {
       .limit(1);
 
     if (existente) {
+      // Se a imagem antiga foi alterada ou removida, exclui a anterior do R2
+      if (existente.avatarUrl && existente.avatarUrl !== avatarUrl) {
+        await deleteImageFromR2(existente.avatarUrl);
+      }
+
       await db
         .update(parceiros)
         .set({
@@ -208,6 +218,22 @@ export class ParceirosService {
   async excluirEmMassa(ids: string[]) {
     if (!ids.length) return { success: true };
 
+    // 0. Obter avatares dos parceiros e usuários vinculados antes da exclusão
+    const parceirosEncontrados = await db
+      .select({ avatarUrl: parceiros.avatarUrl })
+      .from(parceiros)
+      .where(inArray(parceiros.id, ids));
+
+    const usuariosVinculados = await db
+      .select({ avatarUrl: usuarios.avatarUrl })
+      .from(usuarios)
+      .where(inArray(usuarios.parceiroId, ids));
+
+    const avatarsParaExcluir = [
+      ...parceirosEncontrados.map((p) => p.avatarUrl),
+      ...usuariosVinculados.map((u) => u.avatarUrl),
+    ];
+
     // 1. Obter todas as indicações dos parceiros selecionados
     const indicacoesDoParceiro = await db
       .select({ id: indicacoes.id })
@@ -231,6 +257,11 @@ export class ParceirosService {
 
     // 5. Excluir parceiros
     await db.delete(parceiros).where(inArray(parceiros.id, ids));
+
+    // 6. Excluir fotos do Cloudflare R2
+    if (avatarsParaExcluir.length > 0) {
+      await deleteImagesFromR2(avatarsParaExcluir);
+    }
 
     return { success: true };
   }

@@ -7,6 +7,7 @@ import { hashPassword } from "../../lib/password";
 import { usuarioFormSchema, perfilSchema } from "./usuarios.schemas";
 import { enviarConviteUsuario } from "../../lib/email";
 import { z } from "zod";
+import { deleteImageFromR2 } from "../../lib/r2";
 import {
   BadRequestError,
   ConflictError,
@@ -210,6 +211,12 @@ export class UsuariosService {
     }
 
     await db.delete(usuarios).where(eq(usuarios.id, id));
+
+    // Excluir foto do usuário armazenada no Cloudflare R2
+    if (found.avatarUrl) {
+      await deleteImageFromR2(found.avatarUrl);
+    }
+
     return { success: true };
   }
 
@@ -226,6 +233,12 @@ export class UsuariosService {
       throw new ConflictError("Já existe um usuário com esse e-mail.");
     }
 
+    const [atual] = await db
+      .select({ avatarUrl: usuarios.avatarUrl })
+      .from(usuarios)
+      .where(eq(usuarios.id, actor.id))
+      .limit(1);
+
     await db
       .update(usuarios)
       .set({
@@ -236,6 +249,11 @@ export class UsuariosService {
         avatarUrl: value.avatarUrl || null,
       })
       .where(eq(usuarios.id, actor.id));
+
+    // Se o avatar foi alterado ou removido, excluir foto antiga do R2
+    if (atual?.avatarUrl && atual.avatarUrl !== value.avatarUrl) {
+      await deleteImageFromR2(atual.avatarUrl);
+    }
 
     const [updated] = await db.select().from(usuarios).where(eq(usuarios.id, actor.id)).limit(1);
     const { senhaHash, ...sanitized } = updated!;

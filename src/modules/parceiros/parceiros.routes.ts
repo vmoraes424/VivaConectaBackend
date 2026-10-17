@@ -59,4 +59,15 @@ export async function parceirosRoutes(app: FastifyInstance) {
       return reply.send({ success: true });
     },
   );
+
+  // Excluir parceiro individual
+  app.delete(
+    "/:id",
+    { preHandler: [requireArea("parceiros")] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      await service.excluirEmMassa([id]);
+      return reply.send({ success: true });
+    },
+  );
 }
