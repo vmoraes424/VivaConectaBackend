@@ -4,7 +4,7 @@ import { especialidades } from "../../db/schema/especialidades";
 import { indicacoes } from "../../db/schema/indicacoes";
 import { acessos } from "../../db/schema/acessos";
 import { usuarios } from "../../db/schema/usuarios";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray, desc, and, ne } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { normalizar } from "../../lib/conecta";
 import { parceiroInputSchema, type parceirosQuerySchema } from "./parceiros.schemas";
@@ -18,6 +18,40 @@ import {
   deleteImagesFromR2,
 } from "../../lib/r2";
 import z from "zod";
+
+async function safeDeleteImage(
+  url: string | null | undefined,
+  ignoreParceiroId?: string,
+  ignoreUserId?: string,
+) {
+  if (!url || url.startsWith("data:")) return;
+
+  const [usuario] = await db
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(
+      ignoreUserId
+        ? and(eq(usuarios.avatarUrl, url), ne(usuarios.id, ignoreUserId))
+        : eq(usuarios.avatarUrl, url),
+    )
+    .limit(1);
+
+  if (usuario) return;
+
+  const [parceiro] = await db
+    .select({ id: parceiros.id })
+    .from(parceiros)
+    .where(
+      ignoreParceiroId
+        ? and(eq(parceiros.avatarUrl, url), ne(parceiros.id, ignoreParceiroId))
+        : eq(parceiros.avatarUrl, url),
+    )
+    .limit(1);
+
+  if (parceiro) return;
+
+  await deleteImageFromR2(url);
+}
 
 export class ParceirosService {
   async listar(filters?: z.infer<typeof parceirosQuerySchema>) {
@@ -163,9 +197,9 @@ export class ParceirosService {
       .limit(1);
 
     if (existente) {
-      // Se a imagem antiga foi alterada ou removida, exclui a anterior do R2
+      // Se a imagem antiga foi alterada ou removida, exclui a anterior do R2 se nenhum outro registro estiver usando
       if (existente.avatarUrl && existente.avatarUrl !== avatarUrl) {
-        await deleteImageFromR2(existente.avatarUrl);
+        await safeDeleteImage(existente.avatarUrl, id);
       }
 
       await db

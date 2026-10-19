@@ -7,13 +7,47 @@ import { hashPassword } from "../../lib/password";
 import { usuarioFormSchema, perfilSchema } from "./usuarios.schemas";
 import { enviarConviteUsuario } from "../../lib/email";
 import { z } from "zod";
-import { deleteImageFromR2 } from "../../lib/r2";
+import { deleteImageFromR2, uploadImageToR2, parseDataUrl } from "../../lib/r2";
 import {
   BadRequestError,
   ConflictError,
   ForbiddenError,
   NotFoundError,
 } from "../../shared/errors";
+
+async function safeDeleteImage(
+  url: string | null | undefined,
+  ignoreUserId?: string,
+  ignoreParceiroId?: string,
+) {
+  if (!url || url.startsWith("data:")) return;
+
+  const [parceiro] = await db
+    .select({ id: parceiros.id })
+    .from(parceiros)
+    .where(
+      ignoreParceiroId
+        ? and(eq(parceiros.avatarUrl, url), ne(parceiros.id, ignoreParceiroId))
+        : eq(parceiros.avatarUrl, url),
+    )
+    .limit(1);
+
+  if (parceiro) return;
+
+  const [usuario] = await db
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(
+      ignoreUserId
+        ? and(eq(usuarios.avatarUrl, url), ne(usuarios.id, ignoreUserId))
+        : eq(usuarios.avatarUrl, url),
+    )
+    .limit(1);
+
+  if (usuario) return;
+
+  await deleteImageFromR2(url);
+}
 
 export class UsuariosService {
   async listar() {
@@ -110,12 +144,25 @@ export class UsuariosService {
       }
     }
 
+    let avatarUrl = value.avatarUrl ? value.avatarUrl.trim() : null;
+    if (avatarUrl && avatarUrl.startsWith("data:image/")) {
+      const parsed = parseDataUrl(avatarUrl);
+      if (parsed) {
+        const uploaded = await uploadImageToR2(parsed.buffer, parsed.mimeType, "avatars");
+        avatarUrl = uploaded.url;
+      }
+    }
+
     const papel = value.tipo === "parceiro" ? "parceiro" : "admin";
     const perfil = value.tipo === "editor" ? "editor" : "administrador";
     const acessos = value.tipo === "editor" ? value.acessos : [];
     const parceiroId = value.tipo === "parceiro" ? value.parceiroId : null;
 
     if (id && previous) {
+      if (previous.avatarUrl && previous.avatarUrl !== avatarUrl) {
+        await safeDeleteImage(previous.avatarUrl, id);
+      }
+
       await db
         .update(usuarios)
         .set({
@@ -126,8 +173,24 @@ export class UsuariosService {
           acessos,
           parceiroId,
           ativo: value.ativo,
+          avatarUrl: avatarUrl || null,
         })
         .where(eq(usuarios.id, id));
+
+      if (value.tipo === "parceiro" && value.parceiroId && avatarUrl) {
+        const [parceiro] = await db
+          .select()
+          .from(parceiros)
+          .where(eq(parceiros.id, value.parceiroId))
+          .limit(1);
+
+        if (parceiro && (!parceiro.avatarUrl || !parceiro.avatarUrl.trim())) {
+          await db
+            .update(parceiros)
+            .set({ avatarUrl })
+            .where(eq(parceiros.id, value.parceiroId));
+        }
+      }
 
       const [updated] = await db.select().from(usuarios).where(eq(usuarios.id, id)).limit(1);
       const { senhaHash, ...sanitized } = updated!;
@@ -152,7 +215,24 @@ export class UsuariosService {
       convitePendente: true,
       conviteToken,
       conviteExpiraEm,
+      avatarUrl: avatarUrl || null,
     });
+
+    // Se for usuário de parceiro e tiver foto, repassa para o parceiro caso ele não tenha foto
+    if (value.tipo === "parceiro" && value.parceiroId && avatarUrl) {
+      const [parceiro] = await db
+        .select()
+        .from(parceiros)
+        .where(eq(parceiros.id, value.parceiroId))
+        .limit(1);
+
+      if (parceiro && (!parceiro.avatarUrl || !parceiro.avatarUrl.trim())) {
+        await db
+          .update(parceiros)
+          .set({ avatarUrl })
+          .where(eq(parceiros.id, value.parceiroId));
+      }
+    }
 
     const [created] = await db.select().from(usuarios).where(eq(usuarios.id, userId)).limit(1);
 
@@ -212,9 +292,9 @@ export class UsuariosService {
 
     await db.delete(usuarios).where(eq(usuarios.id, id));
 
-    // Excluir foto do usuário armazenada no Cloudflare R2
+    // Excluir foto do usuário armazenada no Cloudflare R2 (se não estiver em uso)
     if (found.avatarUrl) {
-      await deleteImageFromR2(found.avatarUrl);
+      await safeDeleteImage(found.avatarUrl, id);
     }
 
     return { success: true };
@@ -250,9 +330,9 @@ export class UsuariosService {
       })
       .where(eq(usuarios.id, actor.id));
 
-    // Se o avatar foi alterado ou removido, excluir foto antiga do R2
+    // Se o avatar foi alterado ou removido, excluir foto antiga do R2 se não estiver em uso
     if (atual?.avatarUrl && atual.avatarUrl !== value.avatarUrl) {
-      await deleteImageFromR2(atual.avatarUrl);
+      await safeDeleteImage(atual.avatarUrl, actor.id);
     }
 
     const [updated] = await db.select().from(usuarios).where(eq(usuarios.id, actor.id)).limit(1);

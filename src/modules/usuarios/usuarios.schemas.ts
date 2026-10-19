@@ -24,6 +24,7 @@ export const usuarioFormSchema = z
     acessos: z.array(z.enum(["visao-geral", "parceiros", "indicacoes"])).default([]),
     parceiroId: z.string().default(""),
     ativo: z.boolean().default(true),
+    avatarUrl: avatarSchema.optional().default(""),
   })
   .superRefine((value, ctx) => {
     if (value.tipo === "editor" && !value.acessos.length) {
