@@ -7,19 +7,18 @@ export interface CookieOptions {
   secure: boolean;
   sameSite: "none" | "lax" | "strict";
   maxAge?: number;
+  domain?: string;
 }
 
 /**
  * Retorna as configurações seguras para cookies HttpOnly.
  *
- * Em produção/nuvem (ex: Railway, HTTPS), o frontend e backend podem estar
- * em subdomínios ou domínios diferentes. Para que o navegador envie os cookies
- * HttpOnly em requisições CORS/fetch (credentials: "include"), SameSite PRECISA
- * ser "none" e Secure DEVE ser true.
+ * Quando em subdomínio de vivasf.com.br (ex: api.conecta.vivasf.com.br),
+ * domain é configurado como .vivasf.com.br e sameSite="lax", permitindo que
+ * o Safari no iPhone / iOS envie os cookies normalmente sem bloqueio do ITP.
  *
- * Em localhost/127.0.0.1 (desenvolvimento HTTP sem TLS), SameSite="none" não é
- * permitido pelos navegadores sem Secure (e Secure em HTTP pura pode falhar),
- * logo utiliza "lax" e secure=false.
+ * Em domínios totalmente distintos sem proxy (ex: railway.app cross-site), usa sameSite="none".
+ * Em localhost/127.0.0.1, utiliza "lax" e secure=false.
  */
 export function getCookieOptions(
   request: FastifyRequest,
@@ -41,11 +40,18 @@ export function getCookieOptions(
     forwardedProto === "https" ||
     (!isLocalhost && (env.NODE_ENV === "production" || host.includes("railway.app")));
 
+  const isVivaSf =
+    host.endsWith("vivasf.com.br") ||
+    Boolean(env.COOKIE_DOMAIN && env.COOKIE_DOMAIN.includes("vivasf.com.br"));
+
+  const domain = env.COOKIE_DOMAIN || (isVivaSf ? ".vivasf.com.br" : undefined);
+
   return {
     path: "/",
     httpOnly: true,
     secure: isHttps,
-    sameSite: isHttps && !isLocalhost ? "none" : "lax",
+    sameSite: isVivaSf ? "lax" : isHttps && !isLocalhost ? "none" : "lax",
+    ...(domain ? { domain } : {}),
     ...(maxAge !== undefined ? { maxAge } : {}),
   };
 }

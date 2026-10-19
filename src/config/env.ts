@@ -2,12 +2,13 @@ import { z } from "zod";
 import "dotenv/config";
 
 const envSchema = z.object({
-  PORT: z.coerce.number().default(3333),
+  PORT: z.coerce.number().default(3334),
   HOST: z.string().default("0.0.0.0"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  DATABASE_URL: z.string().default("postgres://postgres:postgres@localhost:5432/viva_conecta"),
+  DATABASE_URL: z.string().default("postgres://postgres:postgres@localhost:5433/viva_conecta"),
   JWT_SECRET: z.string().min(16).default("super-secret-jwt-key-viva-conecta-change-me-in-production"),
   COOKIE_SECRET: z.string().min(16).default("super-secret-cookie-key-viva-conecta-change-me"),
+  COOKIE_DOMAIN: z.string().optional(),
   FRONTEND_URL: z.string().default("http://localhost:3000"),
 
   // Resend (E-mail)

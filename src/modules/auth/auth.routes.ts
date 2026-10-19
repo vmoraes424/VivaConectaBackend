@@ -50,6 +50,7 @@ export async function authRoutes(app: FastifyInstance) {
       path: opts.path,
       secure: opts.secure,
       sameSite: opts.sameSite,
+      ...(opts.domain ? { domain: opts.domain } : {}),
     });
     return reply.send({ success: true });
   });

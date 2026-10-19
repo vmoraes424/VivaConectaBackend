@@ -178,4 +178,19 @@ describe("App & Security Tests", () => {
     assert.equal(opts.secure, true);
     assert.equal(opts.httpOnly, true);
   });
+
+  test("Cookies: subdomínio vivasf.com.br utiliza sameSite=lax e domain=.vivasf.com.br para compatibilidade iOS Safari", () => {
+    const req = {
+      protocol: "https",
+      headers: {
+        host: "api.conecta.vivasf.com.br",
+        "x-forwarded-proto": "https",
+      },
+    };
+    const opts = getCookieOptions(req as any, 3600);
+    assert.equal(opts.sameSite, "lax");
+    assert.equal(opts.secure, true);
+    assert.equal(opts.domain, ".vivasf.com.br");
+    assert.equal(opts.httpOnly, true);
+  });
 });

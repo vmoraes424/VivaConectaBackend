@@ -27,7 +27,7 @@ FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3333
+ENV PORT=3334
 ENV HOST=0.0.0.0
 
 # Copia manifestos e instala apenas dependências de produção
@@ -42,7 +42,7 @@ COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
 # Usuário não-root para segurança
 USER node
 
-EXPOSE 3333
+EXPOSE 3334
 
 # Inicializa o servidor Fastify
 CMD ["node", "dist/server.js"]
