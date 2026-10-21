@@ -17,6 +17,19 @@ describe("GeoLocation Resolution Tests", () => {
     assert.equal(loc.uf, "RS");
   });
 
+  test("Cloudflare headers: corrige UTF-8 lido como latin1 (ChapecÃ³ -> Chapecó)", async () => {
+    const req = {
+      headers: {
+        "cf-ipcity": "ChapecÃ³",
+        "cf-region-code": "SC",
+      },
+    };
+
+    const loc = await resolveGeoLocation(req);
+    assert.equal(loc.cidade, "Chapecó");
+    assert.equal(loc.uf, "SC");
+  });
+
   test("Cloudflare headers: suporta cf-region alternativo", async () => {
     const req = {
       headers: {

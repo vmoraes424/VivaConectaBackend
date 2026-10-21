@@ -26,14 +26,23 @@ function isPrivateIp(ip?: string): boolean {
   return false;
 }
 
+// Node lê valores de header como latin1; a Cloudflare envia UTF-8 cru, então
+// "Chapecó" chega como "ChapecÃ³". Reinterpreta os bytes como UTF-8 quando for o caso.
+function fixMojibake(str: string): string {
+  if (!/[Â-ô][\u0080-¿]/.test(str)) return str;
+  const fixed = Buffer.from(str, "latin1").toString("utf8");
+  return fixed.includes("�") ? str : fixed;
+}
+
 function decodeHeader(val?: string | string[]): string | undefined {
   if (!val) return undefined;
   const str = Array.isArray(val) ? val[0] : val;
   if (!str) return undefined;
+  const raw = fixMojibake(str);
   try {
-    return decodeURIComponent(str).trim();
+    return decodeURIComponent(raw).trim();
   } catch {
-    return str.trim();
+    return raw.trim();
   }
 }
 

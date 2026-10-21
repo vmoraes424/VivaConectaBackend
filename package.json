@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsup src/server.ts src/db/seed.ts src/db/migrate.ts --format esm --out-dir dist --clean",
+    "build": "tsup src/server.ts src/db/seed.ts src/db/migrate.ts src/db/fix-cidade-encoding.ts --format esm --out-dir dist --clean",
     "start": "node dist/server.js",
     "seed": "node dist/db/seed.js",
     "migrate": "node dist/db/migrate.js",
