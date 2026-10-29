@@ -11,6 +11,10 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
   FRONTEND_URL: z.string().default("http://localhost:3000"),
 
+  // Backend do Viva SF (cadastro de profissionais compartilhado). Sem a chave a aba Cadastro fica indisponível.
+  VIVASF_API_URL: z.string().optional().default(""),
+  VIVASF_SERVICE_KEY: z.string().optional().default(""),
+
   // Resend (E-mail)
   RESEND_API_KEY: z.string().optional().default(""),
   EMAIL_FROM: z.string().default("Viva Conecta <noreply@noreply.vivasf.com.br>"),

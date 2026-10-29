@@ -15,6 +15,7 @@ import { especialidadesRoutes } from "./modules/especialidades/especialidades.ro
 import { parceirosRoutes } from "./modules/parceiros/parceiros.routes";
 import { indicacoesRoutes } from "./modules/indicacoes/indicacoes.routes";
 import { parceiroDashboardRoutes } from "./modules/parceiro-dashboard/parceiro-dashboard.routes";
+import { cadastroRoutes } from "./modules/cadastro/cadastro.routes";
 import { resumoRoutes } from "./modules/resumo/resumo.routes";
 import { uploadRoutes } from "./modules/upload/upload.routes";
 import { publicoRoutes, publicoAtalhosRoutes } from "./modules/publico/publico.routes";
@@ -129,6 +130,7 @@ export function buildApp(): FastifyInstance {
   app.register(parceirosRoutes, { prefix: "/api/parceiros" });
   app.register(indicacoesRoutes, { prefix: "/api/indicacoes" });
   app.register(parceiroDashboardRoutes, { prefix: "/api/parceiro" });
+  app.register(cadastroRoutes, { prefix: "/api/parceiro/cadastro" });
   app.register(resumoRoutes, { prefix: "/api/resumo" });
   app.register(uploadRoutes, { prefix: "/api/upload" });
   // 6. publicoRoutes sob /api/publico e atalhos curtos /i/:codigo na raiz
