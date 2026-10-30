@@ -1,4 +1,4 @@
-import { FastifyRequest } from "fastify";
+import { FastifyReply, FastifyRequest } from "fastify";
 import { env } from "./env";
 
 export interface CookieOptions {
@@ -8,6 +8,18 @@ export interface CookieOptions {
   sameSite: "none" | "lax" | "strict";
   maxAge?: number;
   domain?: string;
+}
+
+/**
+ * Apaga o cookie de sessão nas duas variantes (com e sem Domain). Um cookie antigo host-only
+ * não é removido por um clear com Domain, e como o servidor lê o primeiro "token" do header,
+ * ele sobrepõe a sessão nova (ex.: admin deslogado, parceiro logado no mesmo navegador).
+ */
+export function clearSessionCookies(request: FastifyRequest, reply: FastifyReply) {
+  const { domain, path, secure, sameSite } = getCookieOptions(request);
+  const base = { path, secure, sameSite };
+  reply.clearCookie("token", base);
+  if (domain) reply.clearCookie("token", { ...base, domain });
 }
 
 /**

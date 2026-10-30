@@ -8,7 +8,7 @@ import {
 } from "./auth.schemas";
 import { authenticate } from "../../middlewares/auth";
 import { env } from "../../config/env";
-import { getCookieOptions } from "../../config/cookie";
+import { clearSessionCookies, getCookieOptions } from "../../config/cookie";
 
 export async function authRoutes(app: FastifyInstance) {
   const service = new AuthService();
@@ -38,6 +38,7 @@ export async function authRoutes(app: FastifyInstance) {
       );
 
       const maxAge = body.lembrar ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
+      clearSessionCookies(request, reply);
       reply.setCookie("token", token, getCookieOptions(request, maxAge));
 
       return reply.send({ user, token });
@@ -45,13 +46,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   // Logout
   app.post("/logout", async (request, reply) => {
-    const opts = getCookieOptions(request);
-    reply.clearCookie("token", {
-      path: opts.path,
-      secure: opts.secure,
-      sameSite: opts.sameSite,
-      ...(opts.domain ? { domain: opts.domain } : {}),
-    });
+    clearSessionCookies(request, reply);
     return reply.send({ success: true });
   });
 
@@ -129,6 +124,7 @@ export async function authRoutes(app: FastifyInstance) {
         { expiresIn: "1d" },
       );
 
+      clearSessionCookies(request, reply);
       reply.setCookie("token", token, getCookieOptions(request, 24 * 60 * 60));
 
       return reply.send({ user, token });
