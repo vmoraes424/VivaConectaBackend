@@ -36,7 +36,7 @@ export const excluirIndicacoesSchema = z.object({
 });
 
 const valorNegocioSchema = z.object({
-  valor: z.number().finite().min(0, "Informe um valor v·lido").max(Number.MAX_SAFE_INTEGER / 100),
+  valor: z.number().finite().min(0, "Informe um valor v√°lido").max(Number.MAX_SAFE_INTEGER / 100),
   moeda: z.enum(["BRL", "EUR", "USD"]),
 });
 
@@ -46,7 +46,7 @@ const dataFechamentoSchema = z
   .refine((value) => {
     const parsed = new Date(`${value}T12:00:00Z`);
     return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-  }, "Informe uma data v·lida");
+  }, "Informe uma data v√°lida");
 
 export const marcarNegocioSchema = z.discriminatedUnion("status", [
   z.object({

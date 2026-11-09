@@ -262,7 +262,7 @@ export class IndicacoesService {
       .from(indicacoes)
       .where(eq(indicacoes.codigo, codigo))
       .limit(1);
-    if (!row) throw new NotFoundError("IndicaÁ„o n„o encontrada");
+    if (!row) throw new NotFoundError("Indica√ß√£o n√£o encontrada");
 
     const [acesso] = await db
       .select({ id: acessos.id })
@@ -270,7 +270,7 @@ export class IndicacoesService {
       .where(eq(acessos.indicacaoId, row.id))
       .limit(1);
     if (!acesso) {
-      throw new BadRequestError("O link precisa ter um acesso antes de marcar o negÛcio.");
+      throw new BadRequestError("O link precisa ter um acesso antes de marcar o neg√≥cio.");
     }
 
     const limpo = {

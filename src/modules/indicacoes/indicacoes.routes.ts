@@ -39,7 +39,7 @@ export async function indicacoesRoutes(app: FastifyInstance) {
     },
   );
 
-  // Marcar / atualizar o negócio da indicação
+  // Marcar / atualizar o negÃ³cio da indicaÃ§Ã£o
   app.patch(
     "/:codigo/negocio",
     { preHandler: [requireArea("indicacoes")] },
