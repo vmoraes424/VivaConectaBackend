@@ -7,9 +7,29 @@ import { acessos } from "../../db/schema/acessos";
 import { eq, inArray, desc } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { normalizar, nextCode } from "../../lib/conecta";
-import { indicacaoFormSchema, type indicacoesQuerySchema } from "./indicacoes.schemas";
+import {
+  indicacaoFormSchema,
+  type indicacoesQuerySchema,
+  type MarcarNegocioInput,
+} from "./indicacoes.schemas";
 import { z } from "zod";
-import { BadRequestError } from "../../shared/errors";
+import { BadRequestError, NotFoundError } from "../../shared/errors";
+
+type IndicacaoRow = typeof indicacoes.$inferSelect;
+
+function serializarNegocio(row: IndicacaoRow) {
+  if (!row.negocioStatus) return undefined;
+  return {
+    status: row.negocioStatus as "fechado" | "nao_fechou",
+    valor:
+      row.negocioValor != null
+        ? { valor: row.negocioValor, moeda: (row.negocioMoeda as "BRL" | "EUR" | "USD") || "BRL" }
+        : undefined,
+    fechadoEm: row.negocioFechadoEm ?? undefined,
+    marcadoPor: row.negocioMarcadoPor ?? "",
+    marcadoEm: row.negocioMarcadoEm ?? row.criadaEm,
+  };
+}
 
 export class IndicacoesService {
   async listar(filters?: z.infer<typeof indicacoesQuerySchema>) {
@@ -43,6 +63,7 @@ export class IndicacoesService {
 
       return {
         ...indicacao,
+        negocio: serializarNegocio(indicacao),
         cliente: {
           nome: indicacao.clienteNome,
           whatsapp: indicacao.clienteWhatsapp,
@@ -97,13 +118,19 @@ export class IndicacoesService {
     });
 
     const counts = {
+      fechado: base.filter((i) => i.negocio?.status === "fechado").length,
       todos: base.length,
       acessado: base.filter((i) => i.cliques > 0).length,
       aguardando: base.filter((i) => !i.cliques).length,
     };
 
     const items = base.filter(
-      (i) => !filters?.status || filters.status === "todos" || i.status === filters.status,
+      (i) =>
+        !filters?.status ||
+        filters.status === "todos" ||
+        (filters.status === "fechado"
+          ? i.negocio?.status === "fechado"
+          : i.status === filters.status),
     );
 
     return {
@@ -139,6 +166,7 @@ export class IndicacoesService {
 
     return {
       ...row.indicacao,
+      negocio: serializarNegocio(row.indicacao),
       cliente: {
         nome: row.indicacao.clienteNome,
         whatsapp: row.indicacao.clienteWhatsapp,
@@ -226,5 +254,51 @@ export class IndicacoesService {
     await db.delete(indicacoes).where(inArray(indicacoes.id, ids));
 
     return { success: true };
+  }
+
+  async marcarNegocio(codigo: string, input: MarcarNegocioInput, marcadoPor: string) {
+    const [row] = await db
+      .select({ id: indicacoes.id })
+      .from(indicacoes)
+      .where(eq(indicacoes.codigo, codigo))
+      .limit(1);
+    if (!row) throw new NotFoundError("Indicação não encontrada");
+
+    const [acesso] = await db
+      .select({ id: acessos.id })
+      .from(acessos)
+      .where(eq(acessos.indicacaoId, row.id))
+      .limit(1);
+    if (!acesso) {
+      throw new BadRequestError("O link precisa ter um acesso antes de marcar o negócio.");
+    }
+
+    const limpo = {
+      negocioStatus: null,
+      negocioValor: null,
+      negocioMoeda: null,
+      negocioFechadoEm: null,
+      negocioMarcadoPor: null,
+      negocioMarcadoEm: null,
+    };
+    const valores =
+      input.status === "em_negociacao"
+        ? limpo
+        : {
+            ...limpo,
+            negocioStatus: input.status,
+            negocioMarcadoPor: marcadoPor,
+            negocioMarcadoEm: new Date(),
+            ...(input.status === "fechado"
+              ? {
+                  negocioFechadoEm: input.fechadoEm,
+                  negocioValor: input.valor?.valor ?? null,
+                  negocioMoeda: input.valor?.moeda ?? null,
+                }
+              : {}),
+          };
+
+    await db.update(indicacoes).set(valores).where(eq(indicacoes.id, row.id));
+    return this.obterPorCodigo(codigo);
   }
 }

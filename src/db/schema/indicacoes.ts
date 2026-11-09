@@ -16,6 +16,12 @@ export const indicacoes = pgTable("indicacoes", {
   comissaoAcordadaTipo: text("comissao_acordada_tipo").notNull(),
   comissaoAcordadaValor: doublePrecision("comissao_acordada_valor").notNull(),
   comissaoAcordadaMoeda: text("comissao_acordada_moeda"),
+  negocioStatus: text("negocio_status"), // 'fechado' | 'nao_fechou' | null (em negociação)
+  negocioValor: doublePrecision("negocio_valor"),
+  negocioMoeda: text("negocio_moeda"),
+  negocioFechadoEm: text("negocio_fechado_em"), // YYYY-MM-DD
+  negocioMarcadoPor: text("negocio_marcado_por"),
+  negocioMarcadoEm: timestamp("negocio_marcado_em", { withTimezone: true }),
   criadaPor: text("criada_por").notNull(),
   criadaEm: timestamp("criada_em", { withTimezone: true }).defaultNow().notNull(),
 });

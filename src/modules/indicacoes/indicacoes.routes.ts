@@ -4,6 +4,7 @@ import {
   indicacaoFormSchema,
   indicacoesQuerySchema,
   excluirIndicacoesSchema,
+  marcarNegocioSchema,
 } from "./indicacoes.schemas";
 import { authenticate, requireArea } from "../../middlewares/auth";
 
@@ -35,6 +36,22 @@ export async function indicacoesRoutes(app: FastifyInstance) {
       const body = indicacaoFormSchema.parse(request.body);
       const ind = await service.criar(body, request.currentUser?.nome || "Equipe Viva SF");
       return reply.status(201).send(ind);
+    },
+  );
+
+  // Marcar / atualizar o negócio da indicação
+  app.patch(
+    "/:codigo/negocio",
+    { preHandler: [requireArea("indicacoes")] },
+    async (request, reply) => {
+      const { codigo } = request.params as { codigo: string };
+      const body = marcarNegocioSchema.parse(request.body);
+      const ind = await service.marcarNegocio(
+        codigo,
+        body,
+        request.currentUser?.nome || "Equipe Viva SF",
+      );
+      return reply.send(ind);
     },
   );
 
